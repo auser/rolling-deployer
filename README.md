@@ -3,11 +3,15 @@
 ## Usage
 
 ```bash
-cargo run -- --tag v1.2.3 --name my-traefik-project --repo-url https://github.com/org/repo.git --mount-path /opt/configs
+eol-deployer --help
 ```
 
 ```bash
-cargo run -- --tag v1.2.3 --name my-traefik-project
+eol-deployer --tag v1.2.3 --name my-traefik-project --repo-url https://github.com/org/repo.git --mount-path /opt/configs
+```
+
+```bash
+eol-deployer --tag v1.2.3 --name my-traefik-project
 ```
 
 ## Configuration

@@ -1,0 +1,23 @@
+{
+  "build": {
+    "additional_pages": {
+      "Contributing": "./CONTRIBUTING.md"
+    },
+    "static_dir": "assets"
+  },
+  "components": {
+    "funding": {
+      "preferred_funding": "github"
+    },
+    "artifacts": {
+      "package_managers": {
+        "preferred": {
+          "npm": "npm install -g eol-deployer",
+          "npx": "npx eol-deployer -h",
+          "crates.io": "cargo install eol-deployer",
+          "homebrew": "brew install eol-deployer"
+        }
+      }
+    }
+  }
+}
