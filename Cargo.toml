@@ -1,7 +1,7 @@
 [package]
 name = "eol-deployer"
 version = "0.1.6"
-edition = "2024"
+edition = "2021"
 description = "A tool for deploying new versions of traefik configs"
 authors = ["Ari Lerner <me@ari.io>"]
 license = "MIT"
