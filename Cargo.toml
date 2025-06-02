@@ -1,16 +1,16 @@
 [package]
-name = "eol-deployer"
-version = "0.1.15"
+name = "traefik-deployer"
+version = "0.1.16"
 edition = "2021"
 description = "A tool for deploying new versions of traefik configs"
 authors = ["Ari Lerner <me@ari.io>"]
 license = "MIT"
-documentation = "https://github.com/auser/eol-deployer"
+documentation = "https://github.com/auser/traefik-deployer"
 readme = "README.md"
 keywords = ["traefik", "deployer", "configs"]
 categories = ["development", "tools"]
-repository = "https://github.com/auser/eol-deployer"
-homepage = "https://github.com/auser/eol-deployer"
+repository = "https://github.com/auser/traefik-deployer"
+homepage = "https://github.com/auser/traefik-deployer"
 
 [dependencies]
 clap = { version = "4.5.39", features = ["derive"] }

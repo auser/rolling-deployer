@@ -12,10 +12,10 @@
     "artifacts": {
       "package_managers": {
         "preferred": {
-          "npm": "npm install -g eol-deployer",
-          "npx": "npx eol-deployer -h",
-          "crates.io": "cargo install eol-deployer",
-          "homebrew": "brew install eol-deployer"
+          "npm": "npm install -g traefik-deployer",
+          "npx": "npx traefik-deployer -h",
+          "crates.io": "cargo install traefik-deployer",
+          "homebrew": "brew install traefik-deployer"
         }
       }
     }

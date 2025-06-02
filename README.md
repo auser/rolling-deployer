@@ -3,15 +3,15 @@
 ## Usage
 
 ```bash
-eol-deployer --help
+traefik-deployer --help
 ```
 
 ```bash
-eol-deployer --tag v1.2.3 --name my-traefik-project --repo-url https://github.com/org/repo.git --mount-path /opt/configs
+traefik-deployer --tag v1.2.3 --name my-traefik-project --repo-url https://github.com/org/repo.git --mount-path /opt/configs
 ```
 
 ```bash
-eol-deployer --tag v1.2.3 --name my-traefik-project
+traefik-deployer --tag v1.2.3 --name my-traefik-project
 ```
 
 ## Configuration

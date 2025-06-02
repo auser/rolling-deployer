@@ -1,4 +1,4 @@
-# Contributing to eol-deployer
+# Contributing to traefik-deployer
 
 Thank you for your interest in contributing!
 
@@ -20,4 +20,4 @@ Thank you for your interest in contributing!
 ## Questions
 - For questions, open an issue or discussion.
 
-Thank you for helping improve eol-deployer! 
+Thank you for helping improve traefik-deployer! 
