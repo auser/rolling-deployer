@@ -27,3 +27,9 @@ MOUNT_PATH=/opt/configs
 
 ## Development
 
+Release a new version:
+
+```bash
+git ci -am "Updated version"; cargo release patch --execute --all --no-confirm; git push origin HEAD; git push --tags
+```
+
