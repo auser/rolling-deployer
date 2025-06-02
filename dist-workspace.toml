@@ -25,4 +25,4 @@ windows-archive = ".tar.gz"
 # The archive format to use for non-windows builds (defaults .tar.xz)
 unix-archive = ".tar.gz"
 # Whether to allow dirty working directories
-allow-dirty = true
+allow-dirty = ["ci", "shell", "npm"]
