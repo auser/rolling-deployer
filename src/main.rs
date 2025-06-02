@@ -1,4 +1,4 @@
-use eol_deployer::run;
+use traefik_deployer::run;
 
 #[tokio::main]
 async fn main() {
