@@ -8,7 +8,6 @@ license = "MIT"
 documentation = "https://github.com/auser/traefik-deployer"
 readme = "README.md"
 keywords = ["traefik", "deployer", "configs"]
-categories = ["development", "tools"]
 repository = "https://github.com/auser/traefik-deployer"
 homepage = "https://github.com/auser/traefik-deployer"
 
