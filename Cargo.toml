@@ -21,12 +21,3 @@ tokio = { version = "1.45.1", features = ["macros", "time", "rt-multi-thread"] }
 [profile.dist]
 inherits = "release"
 lto = "thin"
-
-[package.metadata.release]
-
-[package.metadata.wix]
-upgrade-guid = "8A8F4A85-8DCA-4B86-B907-3C437CABEB0A"
-path-guid = "28965098-343C-44BB-9CA4-D81F27A1153A"
-license = false
-eula = false
-# This section is used by cargo-release for release automation.
