@@ -6,7 +6,7 @@ members = ["cargo:."]
 # The preferred dist version to use in CI (Cargo.toml SemVer syntax)
 cargo-dist-version = "0.28.0"
 # The installers to generate for each app
-installers = ["shell", "npm", "homebrew"]
+installers = ["shell", "msi", "homebrew"]
 # Target platforms to build apps for (Rust target-triple syntax)
 targets = [
   "aarch64-apple-darwin",
