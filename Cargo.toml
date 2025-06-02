@@ -5,12 +5,40 @@ edition = "2024"
 description = "A tool for deploying new versions of traefik configs"
 authors = ["Ari Lerner <me@ari.io>"]
 license = "MIT"
+documentation = "https://github.com/auser/eol-deployer"
+readme = "README.md"
+keywords = ["traefik", "deployer", "configs"]
+categories = ["development", "tools"]
 
 [dependencies]
 clap = { version = "4.5.39", features = ["derive"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
-tokio = { version = "1.45.1", features = ["full"] }
+tokio = { version = "1.45.1", features = ["macros", "time", "rt-multi-thread"] }
+
+# The profile that 'cargo dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
+# Config for 'cargo dist'
+[workspace.metadata.dist]
+# The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.22.1"
+# The installers to generate for each app
+installers = ["msi"]
+# Target platforms to build apps for (Rust target-triple syntax)
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
+# Path that installers should place binaries in
+install-path = "CARGO_HOME"
+# Whether to install an updater program
+install-updater = true
 
 [package.metadata.release]
+
+[package.metadata.wix]
+upgrade-guid = "8A8F4A85-8DCA-4B86-B907-3C437CABEB0A"
+path-guid = "28965098-343C-44BB-9CA4-D81F27A1153A"
+license = false
+eula = false
 # This section is used by cargo-release for release automation.
