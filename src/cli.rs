@@ -26,10 +26,9 @@ pub struct CLI {
     pub clone_path: Option<String>,
     #[arg(
         long,
-        help = "Target path in the container to mount the config (e.g. /etc/traefik/dynamic)",
-        required = true
+        help = "Target path in the container to mount the config (e.g. /etc/traefik/dynamic)"
     )]
-    pub mount_path: String,
+    pub mount_path: Option<String>,
     #[arg(short, long, action = clap::ArgAction::Count, help = "Increase verbosity (-v, -vv, etc.)")]
     pub verbose: u8,
     #[arg(long, default_value = "docker-compose.yml")]
@@ -67,6 +66,29 @@ pub async fn deploy(mut cli: CLI) {
             }
         }
     }
+    // Ensure mount_path is set from CLI or .env
+    let mut mount_path = cli.mount_path.clone();
+    if mount_path.is_none() {
+        // Try to get from .env
+        if let Ok(env_content) = std::fs::read_to_string(&cli.env_file) {
+            for line in env_content.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+                if let Some((key, value)) = line.split_once('=') {
+                    if key.trim() == "MOUNT_PATH" {
+                        mount_path = Some(value.trim().to_string());
+                    }
+                }
+            }
+        }
+    }
+    if mount_path.is_none() {
+        eprintln!("MOUNT_PATH must be set via --mount-path or in the .env file");
+        std::process::exit(1);
+    }
+    cli.mount_path = Some(mount_path.unwrap());
     // Load configuration from CLI args and/or .env file
     let config = match Config::from_env_and_cli(&cli) {
         Ok(config) => {
@@ -129,7 +151,7 @@ mod tests {
             socket_path: "/tmp/docker.sock".to_string(),
             repo_url: Some("https://example.com/repo.git".to_string()),
             clone_path: Some("/tmp/mount".to_string()),
-            mount_path: String::new(),
+            mount_path: None,
             verbose: 0,
             compose_file: "docker-compose.yml".to_string(),
             env_file: ".env".to_string(),

@@ -46,8 +46,9 @@ impl Config {
                 "CLONE_PATH not provided. Use --clone-path flag or set CLONE_PATH in .env file",
             )?;
 
-        let mount_path = Some(cli.mount_path.clone())
-            .filter(|s| !s.is_empty())
+        let mount_path = cli
+            .mount_path
+            .clone()
             .or_else(|| env_vars.get("MOUNT_PATH").cloned())
             .ok_or(
                 "MOUNT_PATH not provided. Use --mount-path flag or set MOUNT_PATH in .env file",
