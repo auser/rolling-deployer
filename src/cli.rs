@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::deployment_manager::DeploymentManager;
 use clap::Parser;
+use tracing_subscriber;
 
 #[derive(Parser)]
 pub struct CLI {
@@ -33,13 +34,52 @@ pub struct CLI {
     pub verbose: u8,
     #[arg(long, default_value = "docker-compose.yml")]
     pub compose_file: String,
+    #[arg(
+        short = 'e',
+        long = "env-file",
+        default_value = ".env",
+        help = "Path to .env file"
+    )]
+    pub env_file: String,
 }
 
 // Main application logic
-pub async fn deploy(cli: &CLI) {
+pub async fn deploy(mut cli: CLI) {
+    // Load .env file if present and fill missing CLI fields
+    let env_path = &cli.env_file;
+    if std::path::Path::new(env_path).exists() {
+        if let Ok(env_content) = std::fs::read_to_string(env_path) {
+            for line in env_content.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+                if let Some((key, value)) = line.split_once('=') {
+                    let key = key.trim();
+                    let value = value.trim();
+                    if cli.name.is_none() && key == "NAME" {
+                        cli.name = Some(value.to_string());
+                    }
+                    if cli.socket_path == "/var/run/docker.sock" && key == "SOCKET_PATH" {
+                        cli.socket_path = value.to_string();
+                    }
+                }
+            }
+        }
+    }
     // Load configuration from CLI args and/or .env file
-    let config = match Config::from_env_and_cli(cli) {
+    let config = match Config::from_env_and_cli(&cli) {
         Ok(config) => {
+            // Set up logging based on config.verbose
+            let filter = match cli.verbose {
+                0 => "warn",
+                1 => "info",
+                2 => "debug",
+                _ => "trace",
+            };
+            tracing_subscriber::fmt()
+                .with_env_filter(tracing_subscriber::EnvFilter::new(filter))
+                .init();
             println!("Configuration loaded:");
             println!("  Repository: {}", config.repo_url);
             println!("  Mount path: {}", config.clone_path);
@@ -53,31 +93,16 @@ pub async fn deploy(cli: &CLI) {
         }
     };
 
-    let deployment_manager = DeploymentManager::new(cli.socket_path.clone());
+    let deployment_manager = DeploymentManager::new(config.clone());
 
-    if let Some(project_name) = &cli.name {
-        println!(
-            "Starting deployment for project '{}' with tag '{}'",
-            project_name, cli.tag
-        );
+    println!(
+        "Starting deployment for project '{}' with tag '{}'",
+        config.name, cli.tag
+    );
 
-        match deployment_manager
-            .rolling_deploy(project_name, &cli.tag, &config)
-            .await
-        {
-            Ok(()) => println!("Rolling deployment successful!"),
-            Err(e) => eprintln!("Rolling deployment failed: {}", e),
-        }
-    } else {
-        eprintln!("Project name is required for deployment. Use --name flag.");
-        println!();
-        println!("Examples:");
-        println!(
-            "  ./app v1.2.3 --name my-traefik-project --repo-url https://github.com/org/repo.git --mount-path /opt/configs"
-        );
-        println!(
-            "  ./app v1.2.3 --name my-traefik-project  # Uses .env file for repo and mount path"
-        );
+    match deployment_manager.rolling_deploy(&cli.tag).await {
+        Ok(()) => println!("Rolling deployment successful!"),
+        Err(e) => eprintln!("Rolling deployment failed: {}", e),
     }
 }
 
@@ -107,10 +132,11 @@ mod tests {
             mount_path: String::new(),
             verbose: 0,
             compose_file: "docker-compose.yml".to_string(),
+            env_file: ".env".to_string(),
         };
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
-            deploy(&cli).await;
+            deploy(cli).await;
         });
         // This test just ensures no panic and covers the error path for missing name
     }

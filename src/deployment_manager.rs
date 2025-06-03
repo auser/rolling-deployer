@@ -5,13 +5,15 @@ use std::path::Path;
 pub struct DeploymentManager {
     docker: DockerClient,
     git: GitClient,
+    config: Config,
 }
 
 impl DeploymentManager {
-    pub fn new(socket_path: String) -> Self {
+    pub fn new(config: Config) -> Self {
         Self {
-            docker: DockerClient::new(socket_path),
+            docker: DockerClient::new(config.socket_path.clone()),
             git: GitClient,
+            config,
         }
     }
 
@@ -117,15 +119,11 @@ impl DeploymentManager {
         Ok(())
     }
 
-    pub async fn rolling_deploy(
-        &self,
-        project_name: &str,
-        tag: &str,
-        config: &Config,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn rolling_deploy(&self, tag: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let config = &self.config;
         println!(
             "Starting rolling deployment for project '{}' with tag '{}'",
-            project_name, tag
+            config.name, tag
         );
 
         // 1. Clone the new configuration to a versioned directory
@@ -145,12 +143,12 @@ impl DeploymentManager {
         // 2. Find running Traefik containers for this project
         let running_containers = self
             .docker
-            .get_running_containers_by_image_substring(project_name)
+            .get_running_containers_by_image_substring(&config.name)
             .await?;
 
         if running_containers.is_empty() {
             return Err(
-                format!("No running containers found for project '{}'", project_name).into(),
+                format!("No running containers found for project '{}'", config.name).into(),
             );
         }
 
@@ -273,7 +271,7 @@ impl DeploymentManager {
         }
 
         // Perform rolling deployment to the target tag
-        self.rolling_deploy(project_name, tag, config).await?;
+        self.rolling_deploy(tag).await?;
 
         println!("Rollback completed successfully!");
         Ok(())
