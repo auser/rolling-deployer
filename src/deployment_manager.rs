@@ -15,6 +15,38 @@ impl DeploymentManager {
         }
     }
 
+    /// Robustly extract the service name from a container.
+    /// Prefer the Docker Compose label if present, otherwise parse the container name.
+    fn extract_service_name(container: &crate::types::Container) -> String {
+        // Try Docker Compose label first
+        if let Some(labels) = &container.labels {
+            if let Some(service) = labels.get("com.docker.compose.service") {
+                return service.clone();
+            }
+        }
+        // Fallback: parse from container name
+        if let Some(name) = container.names.get(0) {
+            let name = name.trim_start_matches('/');
+            // Try underscore split (compose v2 default: <project>_<service>_<index>)
+            let underscore_parts: Vec<&str> = name.split('_').collect();
+            if underscore_parts.len() >= 3 {
+                return underscore_parts[underscore_parts.len() - 2].to_string();
+            }
+            // Try dash split (older compose: <something>-<service>-<index>)
+            let dash_parts: Vec<&str> = name.split('-').collect();
+            if dash_parts.len() >= 2 {
+                // If last part is a number, use the one before it
+                if dash_parts.last().unwrap().parse::<u32>().is_ok() {
+                    return dash_parts[dash_parts.len() - 2].to_string();
+                }
+            }
+            // Fallback: just return the name
+            return name.to_string();
+        }
+        // If all else fails, empty string
+        String::new()
+    }
+
     fn update_compose_file_volume_source(
         compose_file: &str,
         new_config_path: &str,
@@ -132,7 +164,7 @@ impl DeploymentManager {
 
         // 3. For each running container, recreate the service
         for (_index, container) in running_containers.iter().enumerate() {
-            let service_name = container.names[0].trim_start_matches('/');
+            let service_name = Self::extract_service_name(container);
             println!("Rolling service: {}", service_name);
 
             // Determine the absolute path to the compose file
@@ -157,7 +189,7 @@ impl DeploymentManager {
                     "up",
                     "-d",
                     "--force-recreate",
-                    service_name,
+                    service_name.as_str(),
                 ])
                 .current_dir(compose_dir)
                 .status()?;
