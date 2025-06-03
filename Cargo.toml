@@ -1,6 +1,6 @@
 [package]
 name = "traefik-deployer"
-version = "0.2.5"
+version = "0.2.6"
 edition = "2021"
 description = "A tool for deploying new versions of traefik configs"
 authors = ["Ari Lerner <me@ari.io>"]
