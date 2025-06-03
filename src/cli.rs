@@ -20,6 +20,8 @@ pub struct CLI {
     pub mount_path: Option<String>,
     #[arg(short, long, action = clap::ArgAction::Count, help = "Increase verbosity (-v, -vv, etc.)")]
     pub verbose: u8,
+    #[arg(long, default_value = "docker-compose.yml")]
+    pub compose_file: String,
 }
 
 // Main application logic
@@ -92,6 +94,7 @@ mod tests {
             repo_url: Some("https://example.com/repo.git".to_string()),
             mount_path: Some("/tmp/mount".to_string()),
             verbose: 0,
+            compose_file: "docker-compose.yml".to_string(),
         };
         let rt = Runtime::new().unwrap();
         rt.block_on(async {

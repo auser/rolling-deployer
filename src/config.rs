@@ -5,6 +5,7 @@ use std::collections::HashMap;
 pub struct Config {
     pub repo_url: String,
     pub mount_path: String,
+    pub compose_file: String,
 }
 
 impl Config {
@@ -44,6 +45,7 @@ impl Config {
         Ok(Config {
             repo_url,
             mount_path,
+            compose_file: cli.compose_file.clone(),
         })
     }
 

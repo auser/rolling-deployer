@@ -83,59 +83,17 @@ impl DockerClient {
         Ok(containers)
     }
 
-    pub async fn get_containers_by_project(
+    pub async fn get_running_containers_by_image_substring(
         &self,
-        project_name: &str,
+        image_substring: &str,
     ) -> Result<Vec<Container>, Box<dyn std::error::Error>> {
         let containers = self.list_containers(true).await?;
         Ok(containers
             .into_iter()
             .filter(|container| {
-                if let Some(ref labels) = container.labels {
-                    labels.get("com.docker.compose.project") == Some(&project_name.to_string())
-                } else {
-                    false
-                }
+                container.state == "running" && container.image.contains(image_substring)
             })
             .collect())
-    }
-
-    pub async fn get_running_traefik_containers(
-        &self,
-        project_name: &str,
-    ) -> Result<Vec<Container>, Box<dyn std::error::Error>> {
-        let containers = self.get_containers_by_project(project_name).await?;
-        Ok(containers
-            .into_iter()
-            .filter(|container| container.state == "running" && container.image.contains("traefik"))
-            .collect())
-    }
-
-    pub async fn create_container_from_existing(
-        &self,
-        template_container: &Container,
-        new_name: &str,
-        new_config_path: &str,
-    ) -> Result<String, Box<dyn std::error::Error>> {
-        // This is a simplified version - in reality you'd need to recreate the full container config
-        // For now, we'll assume you're using docker-compose and can scale the service
-        println!(
-            "Creating new container {} based on {} with config path {}",
-            new_name, template_container.names[0], new_config_path
-        );
-
-        // In a real implementation, you would:
-        // 1. Get the full container configuration
-        // 2. Create a new container with updated volume mounts pointing to new_config_path
-        // 3. Update the volume mount to point to the new versioned config directory
-        // 4. Return the new container ID
-
-        // Example of what the volume mount update would look like:
-        // OLD: /opt/traefik-configs/current:/etc/traefik
-        // NEW: /opt/traefik-configs/traefik-config-v1.2.3:/etc/traefik
-
-        // For now, returning a placeholder - you'll need to implement the full container creation logic
-        Ok("new_container_id".to_string())
     }
 
     pub async fn remove_container(
@@ -197,5 +155,18 @@ impl DockerClient {
 
         stream.write_all(request.as_bytes())?;
         self.read_response(stream)
+    }
+
+    pub async fn get_running_containers_by_name(
+        &self,
+        name: &str,
+    ) -> Result<Vec<Container>, Box<dyn std::error::Error>> {
+        let containers = self.list_containers(true).await?;
+        Ok(containers
+            .into_iter()
+            .filter(|container| {
+                container.state == "running" && container.names.iter().any(|n| n.contains(name))
+            })
+            .collect())
     }
 }

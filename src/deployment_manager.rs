@@ -33,15 +33,13 @@ impl DeploymentManager {
         // 2. Find running Traefik containers for this project
         let running_containers = self
             .docker
-            .get_running_traefik_containers(project_name)
+            .get_running_containers_by_image_substring(project_name)
             .await?;
 
         if running_containers.is_empty() {
-            return Err(format!(
-                "No running Traefik containers found for project '{}'",
-                project_name
-            )
-            .into());
+            return Err(
+                format!("No running containers found for project '{}'", project_name).into(),
+            );
         }
 
         println!(
@@ -51,40 +49,29 @@ impl DeploymentManager {
 
         // 3. For each running container, create a new one with the new config
         for (index, container) in running_containers.iter().enumerate() {
-            let new_container_name = format!(
-                "{}-{}-{}",
-                container.names[0].trim_start_matches('/'),
-                tag,
-                index
-            );
+            let service_name = container.names[0].trim_start_matches('/');
+            println!("Rolling service: {}", service_name);
 
-            println!("Rolling {} -> {}", container.names[0], new_container_name);
+            // Run docker compose up -d --force-recreate <service>
+            let status = std::process::Command::new("docker")
+                .args([
+                    "compose",
+                    "-f",
+                    &config.compose_file,
+                    "up",
+                    "-d",
+                    "--force-recreate",
+                    service_name,
+                ])
+                .status()?;
 
-            // Create new container with updated volume mount pointing to new config
-            let new_container_id = self
-                .docker
-                .create_container_from_existing(
-                    container,
-                    &new_container_name,
-                    &new_config_path, // Pass the new config path here
-                )
-                .await?;
+            if !status.success() {
+                return Err(
+                    format!("docker compose up failed for service {}", service_name).into(),
+                );
+            }
 
-            // Start the new container
-            self.docker.start_container(&new_container_id).await?;
-
-            // Wait a bit for the new container to be ready
-            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-
-            // Health check the new container (simplified)
-            println!("New container {} is starting up...", new_container_name);
-
-            // Stop and remove the old container
-            println!("Stopping old container {}", container.names[0]);
-            self.docker.stop_container(&container.id).await?;
-            self.docker.remove_container(&container.id).await?;
-
-            println!("Successfully rolled {} to new version", container.names[0]);
+            println!("Successfully rolled {} to new version", service_name);
         }
 
         // 4. Clean up old config directories (keep last 3 versions)
