@@ -17,7 +17,7 @@ targets = [
 # Path that installers should place binaries in
 install-path = "CARGO_HOME"
 # Whether to install an updater program
-install-updater = false
+install-updater = true
 # CI backends to support
 ci = "github"
 # The archive format to use for windows builds (defaults .zip)
