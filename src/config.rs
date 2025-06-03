@@ -6,7 +6,7 @@ pub struct Config {
     pub repo_url: String,
     pub clone_path: String,
     pub compose_file: String,
-    pub mount_path_to_replace: Option<String>,
+    pub mount_path: String,
 }
 
 impl Config {
@@ -43,11 +43,18 @@ impl Config {
                 "CLONE_PATH not provided. Use --clone-path flag or set CLONE_PATH in .env file",
             )?;
 
+        let mount_path = Some(cli.mount_path.clone())
+            .filter(|s| !s.is_empty())
+            .or_else(|| env_vars.get("MOUNT_PATH").cloned())
+            .ok_or(
+                "MOUNT_PATH not provided. Use --mount-path flag or set MOUNT_PATH in .env file",
+            )?;
+
         Ok(Config {
             repo_url,
             clone_path,
             compose_file: cli.compose_file.clone(),
-            mount_path_to_replace: cli.mount_path_to_replace.clone(),
+            mount_path,
         })
     }
 

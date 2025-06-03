@@ -25,9 +25,10 @@ pub struct CLI {
     pub clone_path: Option<String>,
     #[arg(
         long,
-        help = "Host path in the compose file to replace with the new config path"
+        help = "Target path in the container to mount the config (e.g. /etc/traefik/dynamic)",
+        required = true
     )]
-    pub mount_path_to_replace: Option<String>,
+    pub mount_path: String,
     #[arg(short, long, action = clap::ArgAction::Count, help = "Increase verbosity (-v, -vv, etc.)")]
     pub verbose: u8,
     #[arg(long, default_value = "docker-compose.yml")]
@@ -103,7 +104,7 @@ mod tests {
             socket_path: "/tmp/docker.sock".to_string(),
             repo_url: Some("https://example.com/repo.git".to_string()),
             clone_path: Some("/tmp/mount".to_string()),
-            mount_path_to_replace: None,
+            mount_path: String::new(),
             verbose: 0,
             compose_file: "docker-compose.yml".to_string(),
         };

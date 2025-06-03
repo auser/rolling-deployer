@@ -50,7 +50,7 @@ impl DeploymentManager {
     fn update_compose_file_volume_source(
         compose_file: &str,
         new_config_path: &str,
-        mount_path_to_replace: &Option<String>,
+        mount_path: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let content = std::fs::read_to_string(compose_file)?;
         let mut doc: Value = serde_yaml::from_str(&content)?;
@@ -59,23 +59,19 @@ impl DeploymentManager {
         if let Some(services) = doc.get_mut("services").and_then(Value::as_mapping_mut) {
             for (_svc_name, svc) in services.iter_mut() {
                 if let Some(vols) = svc.get_mut("volumes").and_then(Value::as_sequence_mut) {
+                    // Try to find and update an existing mapping
                     for vol in vols.iter_mut() {
                         // Handle string form: "host:container[:mode]"
                         if let Some(s) = vol.as_str() {
                             let parts: Vec<&str> = s.split(':').collect();
                             if parts.len() >= 2 {
-                                let host = parts[0];
-                                let should_replace = if let Some(user_path) = mount_path_to_replace
-                                {
-                                    host == user_path
-                                } else {
-                                    host.ends_with("/current")
-                                };
-                                if should_replace && !replaced {
-                                    let mut new_vol = new_config_path.to_string();
-                                    for p in &parts[1..] {
+                                let target = parts[1];
+                                if target == mount_path && !replaced {
+                                    // preserve mode if present
+                                    let mut new_vol = format!("{}:{}", new_config_path, mount_path);
+                                    if parts.len() > 2 {
                                         new_vol.push(':');
-                                        new_vol.push_str(p);
+                                        new_vol.push_str(parts[2]);
                                     }
                                     *vol = Value::String(new_vol);
                                     replaced = true;
@@ -84,17 +80,11 @@ impl DeploymentManager {
                         }
                         // Handle map form (YAML 1.2): {type: bind, source: ..., target: ...}
                         else if let Some(map) = vol.as_mapping_mut() {
-                            if let Some(source) = map
-                                .get(&Value::String("source".to_string()))
+                            if let Some(target) = map
+                                .get(&Value::String("target".to_string()))
                                 .and_then(Value::as_str)
                             {
-                                let should_replace = if let Some(user_path) = mount_path_to_replace
-                                {
-                                    source == user_path
-                                } else {
-                                    source.ends_with("/current")
-                                };
-                                if should_replace && !replaced {
+                                if target == mount_path && !replaced {
                                     map.insert(
                                         Value::String("source".to_string()),
                                         Value::String(new_config_path.to_string()),
@@ -106,6 +96,13 @@ impl DeploymentManager {
                         if replaced {
                             break;
                         }
+                    }
+                    // If not found, add a new mapping
+                    if !replaced {
+                        // Default to rw mode
+                        let new_vol = format!("{}:{}:rw", new_config_path, mount_path);
+                        vols.push(Value::String(new_vol));
+                        replaced = true;
                     }
                 }
                 if replaced {
@@ -142,7 +139,7 @@ impl DeploymentManager {
         Self::update_compose_file_volume_source(
             &config.compose_file,
             &new_config_path,
-            &config.mount_path_to_replace,
+            &config.mount_path,
         )?;
 
         // 2. Find running Traefik containers for this project
