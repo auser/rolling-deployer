@@ -135,17 +135,25 @@ impl DeploymentManager {
             let service_name = container.names[0].trim_start_matches('/');
             println!("Rolling service: {}", service_name);
 
-            // Determine the directory containing the compose file
-            let compose_dir = Path::new(&config.compose_file)
-                .parent()
-                .unwrap_or_else(|| Path::new("."));
+            // Determine the absolute path to the compose file
+            let compose_file_abs = std::fs::canonicalize(&config.compose_file)?;
+            let compose_dir = compose_file_abs.parent().unwrap_or_else(|| Path::new("."));
+
+            // Check if the directory exists
+            if !compose_dir.exists() {
+                return Err(format!(
+                    "Compose directory does not exist: {}",
+                    compose_dir.display()
+                )
+                .into());
+            }
 
             // Run docker compose up -d --force-recreate <service> in the compose file's directory
             let status = std::process::Command::new("docker")
                 .args([
                     "compose",
                     "-f",
-                    &config.compose_file,
+                    compose_file_abs.to_str().unwrap(),
                     "up",
                     "-d",
                     "--force-recreate",
