@@ -1,5 +1,6 @@
 use crate::{config::Config, docker_client::DockerClient, git_client::GitClient};
 use serde_yaml::Value;
+use std::path::Path;
 
 pub struct DeploymentManager {
     docker: DockerClient,
@@ -134,7 +135,12 @@ impl DeploymentManager {
             let service_name = container.names[0].trim_start_matches('/');
             println!("Rolling service: {}", service_name);
 
-            // Run docker compose up -d --force-recreate <service>
+            // Determine the directory containing the compose file
+            let compose_dir = Path::new(&config.compose_file)
+                .parent()
+                .unwrap_or_else(|| Path::new("."));
+
+            // Run docker compose up -d --force-recreate <service> in the compose file's directory
             let status = std::process::Command::new("docker")
                 .args([
                     "compose",
@@ -145,6 +151,7 @@ impl DeploymentManager {
                     "--force-recreate",
                     service_name,
                 ])
+                .current_dir(compose_dir)
                 .status()?;
 
             if !status.success() {
