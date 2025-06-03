@@ -1,3 +1,5 @@
+use tracing::info;
+
 pub struct GitClient;
 
 impl GitClient {
@@ -9,7 +11,7 @@ impl GitClient {
     ) -> Result<String, Box<dyn std::error::Error>> {
         let versioned_path = format!("{}/traefik-config-{}", base_path, tag);
 
-        println!(
+        info!(
             "Cloning repository {} at tag {} to {}",
             repo_url, tag, versioned_path
         );
@@ -45,7 +47,7 @@ impl GitClient {
             .into());
         }
 
-        println!(
+        info!(
             "Successfully cloned {} at tag {} to {}",
             repo_url, tag, versioned_path
         );
@@ -53,7 +55,7 @@ impl GitClient {
     }
 
     pub async fn fetch_latest(&self, repo_dir: &str) -> Result<(), Box<dyn std::error::Error>> {
-        println!("Fetching latest changes in {}", repo_dir);
+        info!("Fetching latest changes in {}", repo_dir);
 
         let output = std::process::Command::new("git")
             .args(&["fetch", "--all"])
@@ -76,7 +78,7 @@ impl GitClient {
         repo_dir: &str,
         tag: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        println!("Checking out tag {} in {}", tag, repo_dir);
+        info!("Checking out tag {} in {}", tag, repo_dir);
 
         let output = std::process::Command::new("git")
             .args(&["checkout", tag])
@@ -91,7 +93,7 @@ impl GitClient {
             .into());
         }
 
-        println!("Successfully checked out tag {}", tag);
+        info!("Successfully checked out tag {}", tag);
         Ok(())
     }
 }

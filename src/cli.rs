@@ -18,6 +18,8 @@ pub struct CLI {
     pub repo_url: Option<String>,
     #[arg(short, long, default_value = "/etc/traefik")]
     pub mount_path: Option<String>,
+    #[arg(short, long, action = clap::ArgAction::Count, help = "Increase verbosity (-v, -vv, etc.)")]
+    pub verbose: u8,
 }
 
 // Main application logic
