@@ -28,7 +28,7 @@ impl Config {
             }
         }
 
-        // Priority: CLI args > .env file > error
+        // Priority: CLI args > .env file > error/default
         let repo_url = cli
             .repo_url
             .clone()
@@ -50,10 +50,28 @@ impl Config {
                 "MOUNT_PATH not provided. Use --mount-path flag or set MOUNT_PATH in .env file",
             )?;
 
+        // New: allow compose_file, name, and socket_path from .env
+        let compose_file = if cli.compose_file != "docker-compose.yml" {
+            cli.compose_file.clone()
+        } else {
+            env_vars
+                .get("COMPOSE_FILE")
+                .cloned()
+                .unwrap_or_else(|| cli.compose_file.clone())
+        };
+
+        // Note: name and socket_path are not in Config struct, but you may want to add them if needed
+        // let name = cli.name.clone().or_else(|| env_vars.get("NAME").cloned());
+        // let socket_path = if cli.socket_path != "/var/run/docker.sock" {
+        //     cli.socket_path.clone()
+        // } else {
+        //     env_vars.get("SOCKET_PATH").cloned().unwrap_or_else(|| cli.socket_path.clone())
+        // };
+
         Ok(Config {
             repo_url,
             clone_path,
-            compose_file: cli.compose_file.clone(),
+            compose_file,
             mount_path,
         })
     }
@@ -62,12 +80,16 @@ impl Config {
         println!("Configuration options:");
         println!("  1. Command line flags:");
         println!(
-            "     ./app v1.2.3 --name my-project --repo-url https://github.com/org/repo.git --mount-path /opt/configs"
+            "     ./app v1.2.3 --name my-project --repo-url https://github.com/org/repo.git --mount-path /opt/configs --clone-path /opt/traefik-configs --compose-file ./docker-compose.yml --socket-path /var/run/docker.sock"
         );
         println!();
         println!("  2. Create a .env file:");
         println!("     REPO_URL=https://github.com/your-org/traefik-config.git");
         println!("     CLONE_PATH=/opt/traefik-configs");
+        println!("     MOUNT_PATH=/etc/traefik/dynamic");
+        println!("     COMPOSE_FILE=./docker-compose.yml");
+        println!("     NAME=my-project");
+        println!("     SOCKET_PATH=/var/run/docker.sock");
         println!();
         println!("Command line flags take precedence over .env file values.");
     }
