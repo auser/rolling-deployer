@@ -1,8 +1,6 @@
 {
   "build": {
-    "additional_pages": {
-      "Contributing": "./CONTRIBUTING.md"
-    },
+    "additional_pages": {},
     "static_dir": "assets"
   },
   "components": {
@@ -10,6 +8,7 @@
       "preferred_funding": "github"
     },
     "artifacts": {
+      "cargo_dist": true,
       "package_managers": {
         "preferred": {
           "npm": "npm install -g traefik-deployer",
