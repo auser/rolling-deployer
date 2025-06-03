@@ -67,3 +67,36 @@ pub async fn deploy(cli: &CLI) {
         );
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Once;
+    use tokio::runtime::Runtime;
+
+    static INIT: Once = Once::new();
+
+    fn setup() {
+        INIT.call_once(|| {
+            // Set up any global state, env vars, etc. if needed
+        });
+    }
+
+    #[test]
+    fn test_deploy_missing_name() {
+        setup();
+        let cli = CLI {
+            tag: "v1.0.0".to_string(),
+            name: None,
+            socket_path: "/tmp/docker.sock".to_string(),
+            repo_url: Some("https://example.com/repo.git".to_string()),
+            mount_path: Some("/tmp/mount".to_string()),
+            verbose: 0,
+        };
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            deploy(&cli).await;
+        });
+        // This test just ensures no panic and covers the error path for missing name
+    }
+}
