@@ -1,4 +1,5 @@
 use crate::{config::Config, docker_client::DockerClient, git_client::GitClient};
+use serde_yaml::Value;
 
 pub struct DeploymentManager {
     docker: DockerClient,
@@ -11,6 +12,79 @@ impl DeploymentManager {
             docker: DockerClient::new(socket_path),
             git: GitClient,
         }
+    }
+
+    fn update_compose_file_volume_source(
+        compose_file: &str,
+        new_config_path: &str,
+        mount_path_to_replace: &Option<String>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let content = std::fs::read_to_string(compose_file)?;
+        let mut doc: Value = serde_yaml::from_str(&content)?;
+        let mut replaced = false;
+
+        if let Some(services) = doc.get_mut("services").and_then(Value::as_mapping_mut) {
+            for (_svc_name, svc) in services.iter_mut() {
+                if let Some(vols) = svc.get_mut("volumes").and_then(Value::as_sequence_mut) {
+                    for vol in vols.iter_mut() {
+                        // Handle string form: "host:container[:mode]"
+                        if let Some(s) = vol.as_str() {
+                            let parts: Vec<&str> = s.split(':').collect();
+                            if parts.len() >= 2 {
+                                let host = parts[0];
+                                let should_replace = if let Some(user_path) = mount_path_to_replace
+                                {
+                                    host == user_path
+                                } else {
+                                    host.ends_with("/current")
+                                };
+                                if should_replace && !replaced {
+                                    let mut new_vol = new_config_path.to_string();
+                                    for p in &parts[1..] {
+                                        new_vol.push(':');
+                                        new_vol.push_str(p);
+                                    }
+                                    *vol = Value::String(new_vol);
+                                    replaced = true;
+                                }
+                            }
+                        }
+                        // Handle map form (YAML 1.2): {type: bind, source: ..., target: ...}
+                        else if let Some(map) = vol.as_mapping_mut() {
+                            if let Some(source) = map
+                                .get(&Value::String("source".to_string()))
+                                .and_then(Value::as_str)
+                            {
+                                let should_replace = if let Some(user_path) = mount_path_to_replace
+                                {
+                                    source == user_path
+                                } else {
+                                    source.ends_with("/current")
+                                };
+                                if should_replace && !replaced {
+                                    map.insert(
+                                        Value::String("source".to_string()),
+                                        Value::String(new_config_path.to_string()),
+                                    );
+                                    replaced = true;
+                                }
+                            }
+                        }
+                        if replaced {
+                            break;
+                        }
+                    }
+                }
+                if replaced {
+                    break;
+                }
+            }
+        }
+        if replaced {
+            let updated = serde_yaml::to_string(&doc)?;
+            std::fs::write(compose_file, updated)?;
+        }
+        Ok(())
     }
 
     pub async fn rolling_deploy(
@@ -27,8 +101,16 @@ impl DeploymentManager {
         // 1. Clone the new configuration to a versioned directory
         let new_config_path = self
             .git
-            .clone_repository_to_versioned_path(&config.repo_url, tag, &config.mount_path)
+            .clone_repository_to_versioned_path(&config.repo_url, tag, &config.clone_path)
             .await?;
+
+        // 1.5. Update the compose file to use the new config path as the volume source
+        // NOTE: You must add serde_yaml = "*" to Cargo.toml
+        Self::update_compose_file_volume_source(
+            &config.compose_file,
+            &new_config_path,
+            &config.mount_path_to_replace,
+        )?;
 
         // 2. Find running Traefik containers for this project
         let running_containers = self
@@ -47,8 +129,8 @@ impl DeploymentManager {
             running_containers.len()
         );
 
-        // 3. For each running container, create a new one with the new config
-        for (index, container) in running_containers.iter().enumerate() {
+        // 3. For each running container, recreate the service
+        for (_index, container) in running_containers.iter().enumerate() {
             let service_name = container.names[0].trim_start_matches('/');
             println!("Rolling service: {}", service_name);
 
@@ -75,7 +157,7 @@ impl DeploymentManager {
         }
 
         // 4. Clean up old config directories (keep last 3 versions)
-        self.cleanup_old_configs(&config.mount_path, 3).await?;
+        self.cleanup_old_configs(&config.clone_path, 3).await?;
 
         println!("Rolling deployment completed successfully!");
         Ok(())
@@ -134,13 +216,13 @@ impl DeploymentManager {
         );
 
         // Check if the target version already exists
-        let target_config_path = format!("{}/traefik-config-{}", config.mount_path, tag);
+        let target_config_path = format!("{}/traefik-config-{}", config.clone_path, tag);
 
         if !std::path::Path::new(&target_config_path).exists() {
             // If the config doesn't exist locally, clone it
             println!("Target config not found locally, cloning...");
             self.git
-                .clone_repository_to_versioned_path(&config.repo_url, tag, &config.mount_path)
+                .clone_repository_to_versioned_path(&config.repo_url, tag, &config.clone_path)
                 .await?;
         } else {
             println!("Using existing config at {}", target_config_path);

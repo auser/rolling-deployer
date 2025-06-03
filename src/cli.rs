@@ -16,8 +16,18 @@ pub struct CLI {
         default_value = "https://bitbucket.org:financialpayments/plain-jane-proxy.git"
     )]
     pub repo_url: Option<String>,
-    #[arg(short, long, default_value = "/etc/traefik")]
-    pub mount_path: Option<String>,
+    #[arg(
+        short,
+        long,
+        default_value = "/etc/traefik",
+        help = "Path to clone the config repo into"
+    )]
+    pub clone_path: Option<String>,
+    #[arg(
+        long,
+        help = "Host path in the compose file to replace with the new config path"
+    )]
+    pub mount_path_to_replace: Option<String>,
     #[arg(short, long, action = clap::ArgAction::Count, help = "Increase verbosity (-v, -vv, etc.)")]
     pub verbose: u8,
     #[arg(long, default_value = "docker-compose.yml")]
@@ -31,7 +41,7 @@ pub async fn deploy(cli: &CLI) {
         Ok(config) => {
             println!("Configuration loaded:");
             println!("  Repository: {}", config.repo_url);
-            println!("  Mount path: {}", config.mount_path);
+            println!("  Mount path: {}", config.clone_path);
             config
         }
         Err(e) => {
@@ -92,7 +102,8 @@ mod tests {
             name: None,
             socket_path: "/tmp/docker.sock".to_string(),
             repo_url: Some("https://example.com/repo.git".to_string()),
-            mount_path: Some("/tmp/mount".to_string()),
+            clone_path: Some("/tmp/mount".to_string()),
+            mount_path_to_replace: None,
             verbose: 0,
             compose_file: "docker-compose.yml".to_string(),
         };

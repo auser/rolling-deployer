@@ -4,8 +4,9 @@ use std::collections::HashMap;
 #[derive(Debug)]
 pub struct Config {
     pub repo_url: String,
-    pub mount_path: String,
+    pub clone_path: String,
     pub compose_file: String,
+    pub mount_path_to_replace: Option<String>,
 }
 
 impl Config {
@@ -34,18 +35,19 @@ impl Config {
             .or_else(|| env_vars.get("REPO_URL").cloned())
             .ok_or("REPO_URL not provided. Use --repo-url flag or set REPO_URL in .env file")?;
 
-        let mount_path = cli
-            .mount_path
+        let clone_path = cli
+            .clone_path
             .clone()
-            .or_else(|| env_vars.get("MOUNT_PATH").cloned())
+            .or_else(|| env_vars.get("CLONE_PATH").cloned())
             .ok_or(
-                "MOUNT_PATH not provided. Use --mount-path flag or set MOUNT_PATH in .env file",
+                "CLONE_PATH not provided. Use --clone-path flag or set CLONE_PATH in .env file",
             )?;
 
         Ok(Config {
             repo_url,
-            mount_path,
+            clone_path,
             compose_file: cli.compose_file.clone(),
+            mount_path_to_replace: cli.mount_path_to_replace.clone(),
         })
     }
 
@@ -58,7 +60,7 @@ impl Config {
         println!();
         println!("  2. Create a .env file:");
         println!("     REPO_URL=https://github.com/your-org/traefik-config.git");
-        println!("     MOUNT_PATH=/opt/traefik-configs");
+        println!("     CLONE_PATH=/opt/traefik-configs");
         println!();
         println!("Command line flags take precedence over .env file values.");
     }
