@@ -1,0 +1,30 @@
+name: Deploy Oranda to GitHub Pages
+
+on:
+  push:
+    tags:
+      - "**[0-9]+.[0-9]+.[0-9]+*"
+
+jobs:
+  deploy-oranda:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install Oranda
+        run: cargo install oranda
+
+      - name: Build Oranda site
+        run: oranda build
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
