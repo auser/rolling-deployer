@@ -49,7 +49,7 @@ impl DeploymentManager {
 
     fn update_compose_file_volume_source(
         compose_file: &str,
-        new_config_path: &str,
+        symlink_path: &str,
         mount_path: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let content = std::fs::read_to_string(compose_file)?;
@@ -68,7 +68,7 @@ impl DeploymentManager {
                                 let target = parts[1];
                                 if target == mount_path && !replaced {
                                     // preserve mode if present
-                                    let mut new_vol = format!("{}:{}", new_config_path, mount_path);
+                                    let mut new_vol = format!("{}:{}", symlink_path, mount_path);
                                     if parts.len() > 2 {
                                         new_vol.push(':');
                                         new_vol.push_str(parts[2]);
@@ -87,7 +87,7 @@ impl DeploymentManager {
                                 if target == mount_path && !replaced {
                                     map.insert(
                                         Value::String("source".to_string()),
-                                        Value::String(new_config_path.to_string()),
+                                        Value::String(symlink_path.to_string()),
                                     );
                                     replaced = true;
                                 }
@@ -100,7 +100,7 @@ impl DeploymentManager {
                     // If not found, add a new mapping
                     if !replaced {
                         // Default to rw mode
-                        let new_vol = format!("{}:{}:rw", new_config_path, mount_path);
+                        let new_vol = format!("{}:{}:rw", symlink_path, mount_path);
                         vols.push(Value::String(new_vol));
                         replaced = true;
                     }
@@ -129,7 +129,7 @@ impl DeploymentManager {
         );
 
         // 1. Clone the new configuration to a versioned directory
-        let new_config_path = self
+        let symlink_path = self
             .git
             .clone_repository_to_versioned_path(&config.repo_url, tag, &config.clone_path)
             .await?;
@@ -138,7 +138,7 @@ impl DeploymentManager {
         // NOTE: You must add serde_yaml = "*" to Cargo.toml
         Self::update_compose_file_volume_source(
             &config.compose_file,
-            &new_config_path,
+            &symlink_path,
             &config.mount_path,
         )?;
 
