@@ -1,8 +1,9 @@
 name: Deploy Oranda to GitHub Pages
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "v*.*.*"
 
 permissions:
   contents: read
@@ -27,8 +28,28 @@ jobs:
       - name: Install Oranda
         run: cargo install oranda
 
+      - name: Debug before build
+        run: |
+          echo "Oranda version:"
+          oranda --version
+          echo "Current directory contents:"
+          ls -la
+          echo "Oranda config:"
+          cat oranda.json || echo "No oranda.json found"
+
       - name: Build Oranda site
         run: oranda build
+
+      - name: Debug after build
+        run: |
+          echo "All files after build:"
+          find . -type f | grep -E '\.(css|js|html)$' | head -20
+          echo "Public directory contents:"
+          ls -la ./public/ || echo "No public directory"
+          echo "Dist directory contents:"
+          ls -la ./dist/ || echo "No dist directory"
+          echo "CSS files location:"
+          find . -name "*.css" -type f
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

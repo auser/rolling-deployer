@@ -1,9 +1,11 @@
 {
   "build": {
     "additional_pages": {},
+    "path_prefix": "/traefik-deployer/",
     "static_dir": "assets"
   },
   "components": {
+    "changelog": true,
     "funding": {
       "preferred_funding": "github"
     },
@@ -18,5 +20,8 @@
         }
       }
     }
+  },
+  "styles": {
+    "theme": "auto"
   }
 }
