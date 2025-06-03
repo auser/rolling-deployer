@@ -109,16 +109,16 @@ pub struct Network {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Mount {
-    #[serde(rename = "Target")]
+    #[serde(rename = "Destination", alias = "Target", alias = "target")]
     pub target: String,
-    #[serde(rename = "Source")]
+    #[serde(rename = "Source", alias = "Source", alias = "source")]
     pub source: String,
-    #[serde(rename = "Type")]
+    #[serde(rename = "Type", alias = "Type", alias = "type")]
     pub mount_type: String,
-    #[serde(rename = "Mode")]
+    #[serde(rename = "Mode", alias = "Mode", alias = "mode")]
     pub mode: String,
-    #[serde(rename = "RW")]
+    #[serde(rename = "RW", alias = "RW", alias = "rw")]
     pub rw: bool,
-    #[serde(rename = "Propagation")]
+    #[serde(rename = "Propagation", alias = "Propagation", alias = "propagation")]
     pub propagation: String,
 }
