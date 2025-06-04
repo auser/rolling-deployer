@@ -28,9 +28,6 @@ tempfile = "3.20.0"
 inherits = "release"
 lto = "thin"
 
-[package.metadata.release]
-build-command = "cargo build --release"
-
 [[test]]
 name = "integration_cli_config"
 path = "tests/integration_cli_config.rs"
