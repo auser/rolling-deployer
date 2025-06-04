@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::deployment_manager::DeploymentManager;
 use clap::Parser;
+use std::collections::HashMap;
 use tracing::{error, info};
 use tracing_subscriber;
 
@@ -45,51 +46,87 @@ pub struct CLI {
 
 // Main application logic
 pub async fn deploy(mut cli: CLI) {
+    // Allow tests to skip real deployment logic
+    if std::env::var("SKIP_DEPLOY").ok().as_deref() == Some("1") {
+        tracing::info!("Skipping real deployment for test");
+        return;
+    }
+
     // Load .env file if present and fill missing CLI fields
-    let env_path = &cli.env_file;
-    if std::path::Path::new(env_path).exists() {
-        if let Ok(env_content) = std::fs::read_to_string(env_path) {
-            for line in env_content.lines() {
+    let env_content = match std::fs::read_to_string(&cli.env_file) {
+        Ok(content) => {
+            let mut env_content = HashMap::new();
+            for line in content.lines() {
                 let line = line.trim();
                 if line.is_empty() || line.starts_with('#') {
                     continue;
                 }
                 if let Some((key, value)) = line.split_once('=') {
-                    let key = key.trim();
-                    let value = value.trim();
-                    if cli.name.is_none() && key == "NAME" {
-                        cli.name = Some(value.to_string());
-                    }
-                    if cli.socket_path == "/var/run/docker.sock" && key == "SOCKET_PATH" {
-                        cli.socket_path = value.to_string();
-                    }
+                    env_content.insert(key.trim().to_string(), value.trim().to_string());
                 }
             }
+            env_content
         }
-    }
+        Err(e) => {
+            error!("Error reading .env file: {}", e);
+            HashMap::new()
+        }
+    };
+
+    // Use the helper for Option<String> fields
+    let name = extract_env_var_from_cli_or_env(&cli.name, &env_content, "NAME", "");
+    let repo_url = extract_env_var_from_cli_or_env(&cli.repo_url, &env_content, "REPO_URL", "");
+    let clone_path =
+        extract_env_var_from_cli_or_env(&cli.clone_path, &env_content, "CLONE_PATH", "");
+    let mount_path =
+        extract_env_var_from_cli_or_env(&cli.mount_path, &env_content, "MOUNT_PATH", "");
+
+    // For String fields with a default, use env_content if the value is still the default
+    let socket_path = if cli.socket_path == "/var/run/docker.sock" {
+        env_content
+            .get("SOCKET_PATH")
+            .cloned()
+            .unwrap_or_else(|| cli.socket_path.clone())
+    } else {
+        cli.socket_path.clone()
+    };
+    let compose_file = if cli.compose_file == "docker-compose.yml" {
+        env_content
+            .get("COMPOSE_FILE")
+            .cloned()
+            .unwrap_or_else(|| cli.compose_file.clone())
+    } else {
+        cli.compose_file.clone()
+    };
+
+    // Update CLI struct for downstream config loading
+    cli.name = if name.is_empty() { None } else { Some(name) };
+    cli.repo_url = if repo_url.is_empty() {
+        None
+    } else {
+        Some(repo_url)
+    };
+    cli.clone_path = if clone_path.is_empty() {
+        None
+    } else {
+        Some(clone_path)
+    };
+    cli.mount_path = if mount_path.is_empty() {
+        None
+    } else {
+        Some(mount_path)
+    };
+    cli.socket_path = socket_path;
+    cli.compose_file = compose_file;
+
     // Ensure mount_path is set from CLI or .env
-    let mut mount_path = cli.mount_path.clone();
-    if mount_path.is_none() {
-        // Try to get from .env
-        if let Ok(env_content) = std::fs::read_to_string(&cli.env_file) {
-            for line in env_content.lines() {
-                let line = line.trim();
-                if line.is_empty() || line.starts_with('#') {
-                    continue;
-                }
-                if let Some((key, value)) = line.split_once('=') {
-                    if key.trim() == "MOUNT_PATH" {
-                        mount_path = Some(value.trim().to_string());
-                    }
-                }
-            }
-        }
-    }
-    if mount_path.is_none() {
+    if cli.mount_path.is_none() {
+        error!("MOUNT_PATH must be set via --mount-path or in the .env file");
         eprintln!("MOUNT_PATH must be set via --mount-path or in the .env file");
-        std::process::exit(1);
+        return;
     }
-    cli.mount_path = Some(mount_path.unwrap());
+    tracing::debug!("Mount path from CLI: {:?}", cli.mount_path);
+
     // Load configuration from CLI args and/or .env file
     let config = match Config::from_env_and_cli(&cli) {
         Ok(config) => {
@@ -130,6 +167,26 @@ pub async fn deploy(mut cli: CLI) {
     }
 }
 
+// Extracts a value from the CLI or .env file, preferring the CLI value if present
+fn extract_env_var_from_cli_or_env<V: ToString + PartialEq + Default>(
+    val: &Option<V>,
+    env_content: &HashMap<String, String>,
+    key: &str,
+    default_value: &str,
+) -> String {
+    let val_str = val.as_ref().unwrap_or(&V::default()).to_string();
+    if val_str != V::default().to_string() && val_str != default_value {
+        // If the CLI value is set and not the default, use it
+        val_str
+    } else if let Some(env_val) = env_content.get(key) {
+        // Otherwise, use the value from the env_content HashMap if present
+        env_val.clone()
+    } else {
+        // Otherwise, return None (caller can use default if needed)
+        default_value.to_string()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -163,5 +220,43 @@ mod tests {
             deploy(cli).await;
         });
         // This test just ensures no panic and covers the error path for missing name
+    }
+
+    #[test]
+    fn test_extract_env_var_from_cli_or_env_cli_value() {
+        let env_content = std::collections::HashMap::new();
+        let cli_val = Some("cli_val".to_string());
+        let result =
+            super::extract_env_var_from_cli_or_env(&cli_val, &env_content, "KEY", "default");
+        assert_eq!(result, "cli_val");
+    }
+
+    #[test]
+    fn test_extract_env_var_from_cli_or_env_env_value() {
+        let mut env_content = std::collections::HashMap::new();
+        env_content.insert("KEY".to_string(), "env_val".to_string());
+        let cli_val: Option<String> = None;
+        let result =
+            super::extract_env_var_from_cli_or_env(&cli_val, &env_content, "KEY", "default");
+        assert_eq!(result, "env_val");
+    }
+
+    #[test]
+    fn test_extract_env_var_from_cli_or_env_both_values() {
+        let mut env_content = std::collections::HashMap::new();
+        env_content.insert("KEY".to_string(), "env_val".to_string());
+        let cli_val = Some("cli_val".to_string());
+        let result =
+            super::extract_env_var_from_cli_or_env(&cli_val, &env_content, "KEY", "default");
+        assert_eq!(result, "cli_val");
+    }
+
+    #[test]
+    fn test_extract_env_var_from_cli_or_env_default() {
+        let env_content = std::collections::HashMap::new();
+        let cli_val: Option<String> = None;
+        let result =
+            super::extract_env_var_from_cli_or_env(&cli_val, &env_content, "KEY", "default");
+        assert_eq!(result, "default");
     }
 }

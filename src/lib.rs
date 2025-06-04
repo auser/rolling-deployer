@@ -1,4 +1,4 @@
-mod cli;
+pub mod cli;
 pub mod config;
 pub mod deployment_manager;
 pub mod docker_client;

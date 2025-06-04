@@ -20,7 +20,17 @@ tokio = { version = "1.45.1", features = ["macros", "time", "rt-multi-thread"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
+[dev-dependencies]
+tempfile = "3.20.0"
+
 # The profile that 'cargo dist' will build with
 [profile.dist]
 inherits = "release"
 lto = "thin"
+
+[package.metadata.release]
+build-command = "cargo build --release"
+
+[[test]]
+name = "integration_cli_config"
+path = "tests/integration_cli_config.rs"
