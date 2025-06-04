@@ -1,7 +1,7 @@
 {
   "build": {
     "additional_pages": {},
-    "path_prefix": "/traefik-deployer/",
+    "path_prefix": "/rolling-deployer/",
     "static_dir": "assets"
   },
   "components": {
@@ -13,10 +13,10 @@
       "cargo_dist": true,
       "package_managers": {
         "preferred": {
-          "npm": "npm install -g traefik-deployer",
-          "npx": "npx traefik-deployer -h",
-          "crates.io": "cargo install traefik-deployer",
-          "homebrew": "brew install traefik-deployer"
+          "npm": "npm install -g rolling-deployer",
+          "npx": "npx rolling-deployer -h",
+          "crates.io": "cargo install rolling-deployer",
+          "homebrew": "brew install rolling-deployer"
         }
       }
     }
