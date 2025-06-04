@@ -146,6 +146,7 @@ impl DeploymentManager {
 
         if swarm {
             println!("Swarm mode enabled: deploying stack '{}'.", config.name);
+            let stack_name = config.name.replace(['/', ':'], "-");
             let compose_file_abs = std::fs::canonicalize(&config.compose_file)?;
             let compose_dir = compose_file_abs.parent().unwrap_or_else(|| Path::new("."));
             let status = std::process::Command::new("docker")
@@ -154,16 +155,16 @@ impl DeploymentManager {
                     "deploy",
                     "-c",
                     compose_file_abs.to_str().unwrap(),
-                    &config.name,
+                    &stack_name,
                 ])
                 .current_dir(compose_dir)
                 .status()?;
             if !status.success() {
-                return Err(format!("docker stack deploy failed for stack {}", config.name).into());
+                return Err(format!("docker stack deploy failed for stack {}", stack_name).into());
             }
             println!(
                 "Successfully deployed stack '{}' in Swarm mode.",
-                config.name
+                stack_name
             );
         } else {
             // 2. Find running Traefik containers for this project
