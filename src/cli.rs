@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::deployment_manager::DeploymentManager;
 use clap::Parser;
+use tracing::{error, info};
 use tracing_subscriber;
 
 #[derive(Parser)]
@@ -102,14 +103,15 @@ pub async fn deploy(mut cli: CLI) {
             tracing_subscriber::fmt()
                 .with_env_filter(tracing_subscriber::EnvFilter::new(filter))
                 .init();
-            println!("Configuration loaded:");
-            println!("  Repository: {}", config.repo_url);
-            println!("  Mount path: {}", config.clone_path);
+            info!("Configuration loaded:");
+            info!("  Repository: {}", config.repo_url);
+            info!("  Clone path: {}", config.clone_path);
+            info!("  Mount path: {}", config.mount_path);
             config
         }
         Err(e) => {
-            eprintln!("Configuration error: {}", e);
-            println!();
+            error!("Configuration error: {}", e);
+            info!("");
             Config::show_configuration_help();
             return;
         }
@@ -117,14 +119,14 @@ pub async fn deploy(mut cli: CLI) {
 
     let deployment_manager = DeploymentManager::new(config.clone());
 
-    println!(
+    info!(
         "Starting deployment for project '{}' with tag '{}'",
         config.name, cli.tag
     );
 
     match deployment_manager.rolling_deploy(&cli.tag).await {
-        Ok(()) => println!("Rolling deployment successful!"),
-        Err(e) => eprintln!("Rolling deployment failed: {}", e),
+        Ok(()) => info!("Rolling deployment successful!"),
+        Err(e) => error!("Rolling deployment failed: {}", e),
     }
 }
 
