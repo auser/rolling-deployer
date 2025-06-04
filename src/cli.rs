@@ -2,7 +2,7 @@ use crate::config::Config;
 use crate::deployment_manager::DeploymentManager;
 use clap::Parser;
 use std::collections::HashMap;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use tracing_subscriber;
 
 #[derive(Parser)]
@@ -19,12 +19,7 @@ pub struct CLI {
         default_value = "https://bitbucket.org:financialpayments/plain-jane-proxy.git"
     )]
     pub repo_url: Option<String>,
-    #[arg(
-        short,
-        long,
-        default_value = "/etc/traefik",
-        help = "Path to clone the config repo into"
-    )]
+    #[arg(short, long, help = "Path to clone the config repo into")]
     pub clone_path: Option<String>,
     #[arg(
         long,
@@ -73,11 +68,13 @@ pub async fn deploy(mut cli: CLI) {
         }
     };
 
+    debug!("env_content: {:?}", env_content);
+
     // Use the helper for Option<String> fields
     let name = extract_env_var_from_cli_or_env(&cli.name, &env_content, "NAME", "");
     let repo_url = extract_env_var_from_cli_or_env(&cli.repo_url, &env_content, "REPO_URL", "");
     let clone_path =
-        extract_env_var_from_cli_or_env(&cli.clone_path, &env_content, "CLONE_PATH", "");
+        extract_env_var_from_cli_or_env(&cli.clone_path, &env_content, "CLONE_PATH", "/opt/dev");
     let mount_path =
         extract_env_var_from_cli_or_env(&cli.mount_path, &env_content, "MOUNT_PATH", "");
 
