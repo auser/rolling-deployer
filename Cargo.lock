@@ -520,7 +520,7 @@ dependencies = [
 
 [[package]]
 name = "traefik-deployer"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "clap",
  "serde",
