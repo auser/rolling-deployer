@@ -123,6 +123,7 @@ impl DeploymentManager {
         &self,
         tag: &str,
         swarm: bool,
+        swarm_service: Option<String>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let config = &self.config;
         println!(
@@ -145,27 +146,39 @@ impl DeploymentManager {
         )?;
 
         if swarm {
-            println!("Swarm mode enabled: deploying stack '{}'.", config.name);
-            let stack_name = config.name.replace(['/', ':'], "-");
-            let compose_file_abs = std::fs::canonicalize(&config.compose_file)?;
-            let compose_dir = compose_file_abs.parent().unwrap_or_else(|| Path::new("."));
+            let service = match swarm_service {
+                Some(ref s) if !s.is_empty() => s,
+                _ => {
+                    return Err(
+                        "In swarm mode, --swarm-service or SWARM_SERVICE must be specified".into(),
+                    );
+                }
+            };
+            println!(
+                "Swarm mode: updating service '{}' mount to new config path.",
+                service
+            );
+            // Remove the old mount and add the new one
+            let _remove_arg = format!(
+                "type=bind,src={},dst={}",
+                config.clone_path, config.mount_path
+            );
+            let add_arg = format!("type=bind,src={},dst={}", symlink_path, config.mount_path);
             let status = std::process::Command::new("docker")
                 .args([
-                    "stack",
-                    "deploy",
-                    "-c",
-                    compose_file_abs.to_str().unwrap(),
-                    &stack_name,
+                    "service",
+                    "update",
+                    "--mount-rm",
+                    &config.mount_path,
+                    "--mount-add",
+                    &add_arg,
+                    service,
                 ])
-                .current_dir(compose_dir)
                 .status()?;
             if !status.success() {
-                return Err(format!("docker stack deploy failed for stack {}", stack_name).into());
+                return Err(format!("docker service update failed for service {}", service).into());
             }
-            println!(
-                "Successfully deployed stack '{}' in Swarm mode.",
-                stack_name
-            );
+            println!("Successfully updated service '{}' in Swarm mode.", service);
         } else {
             // 2. Find running Traefik containers for this project
             let running_containers = self
@@ -280,6 +293,7 @@ impl DeploymentManager {
         tag: &str,
         config: &Config,
         swarm: bool,
+        swarm_service: Option<String>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         println!(
             "Starting rollback of project '{}' to tag '{}'",
@@ -300,7 +314,7 @@ impl DeploymentManager {
         }
 
         // Perform rolling deployment to the target tag
-        self.rolling_deploy(tag, swarm).await?;
+        self.rolling_deploy(tag, swarm, swarm_service).await?;
 
         println!("Rollback completed successfully!");
         Ok(())

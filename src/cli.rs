@@ -39,6 +39,11 @@ pub struct CLI {
     pub env_file: String,
     #[arg(long, help = "Use Docker Swarm mode")]
     pub swarm: bool,
+    #[arg(
+        long,
+        help = "Service name to update in Swarm mode (required if --swarm)"
+    )]
+    pub swarm_service: Option<String>,
 }
 
 // Main application logic
@@ -79,6 +84,8 @@ pub async fn deploy(mut cli: CLI) {
         extract_env_var_from_cli_or_env(&cli.clone_path, &env_content, "CLONE_PATH", "/opt/dev");
     let mount_path =
         extract_env_var_from_cli_or_env(&cli.mount_path, &env_content, "MOUNT_PATH", "");
+    let swarm_service =
+        extract_env_var_from_cli_or_env(&cli.swarm_service, &env_content, "SWARM_SERVICE", "");
 
     // For String fields with a default, use env_content if the value is still the default
     let socket_path = if cli.socket_path == "/var/run/docker.sock" {
@@ -160,7 +167,18 @@ pub async fn deploy(mut cli: CLI) {
         config.name, cli.tag
     );
 
-    match deployment_manager.rolling_deploy(&cli.tag, cli.swarm).await {
+    match deployment_manager
+        .rolling_deploy(
+            &cli.tag,
+            cli.swarm,
+            if swarm_service.is_empty() {
+                None
+            } else {
+                Some(swarm_service)
+            },
+        )
+        .await
+    {
         Ok(()) => info!("Rolling deployment successful!"),
         Err(e) => error!("Rolling deployment failed: {}", e),
     }
@@ -214,6 +232,7 @@ mod tests {
             compose_file: "docker-compose.yml".to_string(),
             env_file: ".env".to_string(),
             swarm: false,
+            swarm_service: None,
         };
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
