@@ -37,6 +37,8 @@ pub struct CLI {
         help = "Path to .env file"
     )]
     pub env_file: String,
+    #[arg(long, help = "Use Docker Swarm mode")]
+    pub swarm: bool,
 }
 
 // Main application logic
@@ -158,7 +160,7 @@ pub async fn deploy(mut cli: CLI) {
         config.name, cli.tag
     );
 
-    match deployment_manager.rolling_deploy(&cli.tag).await {
+    match deployment_manager.rolling_deploy(&cli.tag, cli.swarm).await {
         Ok(()) => info!("Rolling deployment successful!"),
         Err(e) => error!("Rolling deployment failed: {}", e),
     }
@@ -211,6 +213,7 @@ mod tests {
             verbose: 0,
             compose_file: "docker-compose.yml".to_string(),
             env_file: ".env".to_string(),
+            swarm: false,
         };
         let rt = Runtime::new().unwrap();
         rt.block_on(async {

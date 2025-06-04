@@ -119,7 +119,11 @@ impl DeploymentManager {
         Ok(())
     }
 
-    pub async fn rolling_deploy(&self, tag: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn rolling_deploy(
+        &self,
+        tag: &str,
+        swarm: bool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let config = &self.config;
         println!(
             "Starting rolling deployment for project '{}' with tag '{}'",
@@ -140,62 +144,85 @@ impl DeploymentManager {
             &config.mount_path,
         )?;
 
-        // 2. Find running Traefik containers for this project
-        let running_containers = self
-            .docker
-            .get_running_containers_by_image_substring(&config.name)
-            .await?;
-
-        if running_containers.is_empty() {
-            return Err(
-                format!("No running containers found for project '{}'", config.name).into(),
-            );
-        }
-
-        println!(
-            "Found {} running Traefik containers",
-            running_containers.len()
-        );
-
-        // 3. For each running container, recreate the service
-        for (_index, container) in running_containers.iter().enumerate() {
-            let service_name = Self::extract_service_name(container);
-            println!("Rolling service: {}", service_name);
-
-            // Determine the absolute path to the compose file
+        if swarm {
+            println!("Swarm mode enabled: deploying stack '{}'.", config.name);
             let compose_file_abs = std::fs::canonicalize(&config.compose_file)?;
             let compose_dir = compose_file_abs.parent().unwrap_or_else(|| Path::new("."));
-
-            // Check if the directory exists
-            if !compose_dir.exists() {
-                return Err(format!(
-                    "Compose directory does not exist: {}",
-                    compose_dir.display()
-                )
-                .into());
-            }
-
-            // Run docker compose up -d --force-recreate <service> in the compose file's directory
             let status = std::process::Command::new("docker")
                 .args([
-                    "compose",
-                    "-f",
+                    "stack",
+                    "deploy",
+                    "-c",
                     compose_file_abs.to_str().unwrap(),
-                    "up",
-                    "-d",
-                    "--force-recreate",
-                    service_name.as_str(),
+                    &config.name,
                 ])
                 .current_dir(compose_dir)
                 .status()?;
-
             if !status.success() {
+                return Err(format!("docker stack deploy failed for stack {}", config.name).into());
+            }
+            println!(
+                "Successfully deployed stack '{}' in Swarm mode.",
+                config.name
+            );
+        } else {
+            // 2. Find running Traefik containers for this project
+            let running_containers = self
+                .docker
+                .get_running_containers_by_image_substring(&config.name)
+                .await?;
+
+            if running_containers.is_empty() {
                 return Err(
-                    format!("docker compose up failed for service {}", service_name).into(),
+                    format!("No running containers found for project '{}'", config.name).into(),
                 );
             }
 
-            println!("Successfully rolled {} to new version", service_name);
+            println!(
+                "Found {} running Traefik containers",
+                running_containers.len()
+            );
+
+            // 3. For each running container, recreate the service
+            for (_index, container) in running_containers.iter().enumerate() {
+                let service_name = Self::extract_service_name(container);
+                println!("Rolling service: {}", service_name);
+
+                // Determine the absolute path to the compose file
+                let compose_file_abs = std::fs::canonicalize(&config.compose_file)?;
+                let compose_dir = compose_file_abs.parent().unwrap_or_else(|| Path::new("."));
+
+                // Check if the directory exists
+                if !compose_dir.exists() {
+                    return Err(format!(
+                        "Compose directory does not exist: {}",
+                        compose_dir.display()
+                    )
+                    .into());
+                }
+
+                // Run docker compose up -d --force-recreate <service> in the compose file's directory
+                let status = std::process::Command::new("docker")
+                    .args([
+                        "compose",
+                        "-f",
+                        compose_file_abs.to_str().unwrap(),
+                        "up",
+                        "-d",
+                        "--force-recreate",
+                        service_name.as_str(),
+                    ])
+                    .current_dir(compose_dir)
+                    .status()?;
+
+                if !status.success() {
+                    return Err(
+                        format!("docker compose up failed for service {}", service_name).into(),
+                    );
+                }
+
+                println!("Successfully rolled {} to new version", service_name);
+            }
         }
 
         // 4. Clean up old config directories (keep last 3 versions)
@@ -251,6 +278,7 @@ impl DeploymentManager {
         project_name: &str,
         tag: &str,
         config: &Config,
+        swarm: bool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         println!(
             "Starting rollback of project '{}' to tag '{}'",
@@ -271,7 +299,7 @@ impl DeploymentManager {
         }
 
         // Perform rolling deployment to the target tag
-        self.rolling_deploy(tag).await?;
+        self.rolling_deploy(tag, swarm).await?;
 
         println!("Rollback completed successfully!");
         Ok(())

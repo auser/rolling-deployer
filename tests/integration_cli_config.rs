@@ -43,6 +43,7 @@ async fn test_cli_precedence_over_env() {
         verbose: 0,
         compose_file: compose_file_path.display().to_string(),
         env_file: env_path.display().to_string(),
+        swarm: false,
     };
 
     deploy(cli).await;
@@ -92,6 +93,7 @@ async fn test_env_used_when_cli_missing() {
         verbose: 0,
         compose_file: compose_file_path.display().to_string(),
         env_file: env_path.display().to_string(),
+        swarm: false,
     };
 
     deploy(cli).await;
@@ -117,6 +119,40 @@ async fn test_default_used_when_none_set() {
         verbose: 0,
         compose_file: compose_file_path.display().to_string(),
         env_file: env_path.display().to_string(),
+        swarm: false,
+    };
+
+    deploy(cli).await;
+}
+
+#[tokio::test]
+async fn test_swarm_mode_flag() {
+    std::env::set_var("SKIP_DEPLOY", "1");
+    let temp_dir = tempdir().unwrap();
+    let clone_path = temp_dir.path().join("swarm_clone");
+    let mount_path = temp_dir.path().join("swarm_mount");
+    let env_path = temp_dir.path().join("test_swarm.env");
+    let compose_file_path = temp_dir.path().join("swarm-compose.yml");
+    let mut file = File::create(&env_path).unwrap();
+    writeln!(file, "NAME=swarm_name").unwrap();
+    writeln!(file, "REPO_URL={}", TEST_REPO_URL).unwrap();
+    writeln!(file, "CLONE_PATH={}", clone_path.display()).unwrap();
+    writeln!(file, "MOUNT_PATH={}", mount_path.display()).unwrap();
+    writeln!(file, "COMPOSE_FILE={}", compose_file_path.display()).unwrap();
+
+    File::create(&compose_file_path).unwrap();
+
+    let cli = CLI {
+        tag: "v1.2.3".to_string(),
+        name: Some("swarm_name".to_string()),
+        socket_path: "/var/run/docker.sock".to_string(),
+        repo_url: Some(TEST_REPO_URL.to_string()),
+        clone_path: Some(clone_path.display().to_string()),
+        mount_path: Some(mount_path.display().to_string()),
+        verbose: 0,
+        compose_file: compose_file_path.display().to_string(),
+        env_file: env_path.display().to_string(),
+        swarm: true,
     };
 
     deploy(cli).await;
