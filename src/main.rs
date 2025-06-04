@@ -1,4 +1,4 @@
-use traefik_deployer::run;
+use rolling_deployer::run;
 
 #[tokio::main]
 async fn main() {
