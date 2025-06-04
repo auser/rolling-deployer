@@ -1,6 +1,6 @@
 [package]
 name = "rolling-deployer"
-version = "0.2.16"
+version = "0.2.17"
 edition = "2021"
 description = "A tool for deploying new versions of traefik configs"
 authors = ["Ari Lerner <me@ari.io>"]
