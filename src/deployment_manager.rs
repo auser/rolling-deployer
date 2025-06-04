@@ -123,7 +123,6 @@ impl DeploymentManager {
         &self,
         tag: &str,
         swarm: bool,
-        swarm_service: Option<String>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let config = &self.config;
         println!(
@@ -146,22 +145,10 @@ impl DeploymentManager {
         )?;
 
         if swarm {
-            let service = match swarm_service {
-                Some(ref s) if !s.is_empty() => s,
-                _ => {
-                    return Err(
-                        "In swarm mode, --swarm-service or SWARM_SERVICE must be specified".into(),
-                    );
-                }
-            };
+            let service = &config.name;
             println!(
                 "Swarm mode: updating service '{}' mount to new config path.",
                 service
-            );
-            // Remove the old mount and add the new one
-            let _remove_arg = format!(
-                "type=bind,src={},dst={}",
-                config.clone_path, config.mount_path
             );
             let add_arg = format!("type=bind,src={},dst={}", symlink_path, config.mount_path);
             let status = std::process::Command::new("docker")
@@ -293,7 +280,6 @@ impl DeploymentManager {
         tag: &str,
         config: &Config,
         swarm: bool,
-        swarm_service: Option<String>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         println!(
             "Starting rollback of project '{}' to tag '{}'",
@@ -314,7 +300,7 @@ impl DeploymentManager {
         }
 
         // Perform rolling deployment to the target tag
-        self.rolling_deploy(tag, swarm, swarm_service).await?;
+        self.rolling_deploy(tag, swarm).await?;
 
         println!("Rollback completed successfully!");
         Ok(())
