@@ -13,11 +13,7 @@ pub struct CLI {
     pub name: Option<String>,
     #[arg(short, long, default_value = "/var/run/docker.sock")]
     pub socket_path: String,
-    #[arg(
-        short,
-        long,
-        default_value = "https://bitbucket.org:financialpayments/plain-jane-proxy.git"
-    )]
+    #[arg(short, long)]
     pub repo_url: Option<String>,
     #[arg(short, long, help = "Path to clone the config repo into")]
     pub clone_path: Option<String>,
