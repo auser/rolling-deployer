@@ -13,7 +13,7 @@ This project provides a robust deployer for Docker Compose services that use vol
 ### With CLI arguments only
 
 ```bash
-deployer --tag v1.2.3 --name my-project \
+rolling-deployer --tag v1.2.3 --name my-project \
   --repo-url https://github.com/org/repo.git \
   --mount-path /etc/myapp/config \
   --clone-path /opt/configs \
@@ -25,6 +25,7 @@ deployer --tag v1.2.3 --name my-project \
 You can provide configuration via a `.env` file (default: `.env`). CLI flags always override `.env` values.
 
 Example `.env`:
+
 ```bash
 REPO_URL=https://github.com/org/repo.git
 CLONE_PATH=/opt/configs
@@ -34,21 +35,35 @@ NAME=my-project
 SOCKET_PATH=/var/run/docker.sock
 ```
 
-Then run:
+After a successfully deploy, the `CLONE_PATH` directory will be populated with the `REPO_URL` and `TAG` directory.
+
 ```bash
-deployer --tag v1.2.3
+/opt/configs/v0.1.0/
+/opt/configs/v0.1.1/
+# Then we'll have a soft-link to `current`:
+/opt/configs/current -> /opt/configs/v0.1.1
+```
+
+Then run:
+
+```bash
+rolling-deployer --tag v0.1.1
 ```
 
 Or override any value:
+
 ```bash
-deployer --tag v1.2.3 --name another-project
+rolling-deployer --tag v0.1.1 --name another-project
 ```
+
+See how it works below, however the cursory version is that if we need to rollback, we can just run `rolling-deployer --tag v0.1.0` with the previous tag and it will switch the config mount to the previous version and restart the service.
 
 ## How Rollbacks and Upgrades Work
 
 - **Upgrade**: The deployer clones the config repo at the specified tag into a versioned directory, updates the docker-compose volume to point to this directory, and runs `docker compose up -d --force-recreate` for the service.
 - **Rollback**: Specify an older tag to revert; the deployer switches the config mount to the previous version and restarts the service.
 - **Cleanup**: Old config directories are automatically cleaned up (keeping the last 3 versions).
+
 
 ## Development
 
